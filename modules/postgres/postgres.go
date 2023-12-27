@@ -141,3 +141,48 @@ func RunContainer(ctx context.Context, opts ...testcontainers.ContainerCustomize
 
 	return &PostgresContainer{Container: container, dbName: dbName, password: password, user: user}, nil
 }
+
+func RunContainer2(ctx context.Context, dirShare map[string]string, opts ...testcontainers.ContainerCustomizer) (*PostgresContainer, error) {
+	req := testcontainers.ContainerRequest{
+		Image: defaultPostgresImage,
+		Env: map[string]string{
+			"POSTGRES_USER":     defaultUser,
+			"POSTGRES_PASSWORD": defaultPassword,
+			"POSTGRES_DB":       defaultUser, // defaults to the user name
+		},
+		ExposedPorts: []string{"5432/tcp"},
+		Cmd:          []string{"postgres", "-c", "fsync=off"},
+	}
+
+	if len(dirShare) > 0 {
+		req.Files = []testcontainers.ContainerFile{
+			{
+				HostFilePath:      dirShare["host"],
+				ContainerFilePath: dirShare["container"],
+				FileMode:          0o777,
+			},
+		}
+	}
+
+	genericContainerReq := testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	}
+
+	for _, opt := range opts {
+		opt.Customize(&genericContainerReq)
+	}
+
+	container, err := testcontainers.GenericContainer(ctx, genericContainerReq)
+	if err != nil {
+		return nil, err
+	}
+
+	user := req.Env["POSTGRES_USER"]
+	password := req.Env["POSTGRES_PASSWORD"]
+	dbName := req.Env["POSTGRES_DB"]
+
+	container.Exec(ctx, []string{"apk", "add", "gcompat"})
+
+	return &PostgresContainer{Container: container, dbName: dbName, password: password, user: user}, nil
+}
