@@ -1,4 +1,4 @@
-module github.com/testcontainers/testcontainers-go/modules/postgres
+module github.com/mdyd-dev/testcontainers-go/modules/postgres
 
 go 1.20
 
